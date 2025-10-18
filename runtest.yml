@@ -1,0 +1,71 @@
+name: CI Iris Pipeline Test
+
+on:
+  push:
+    branches:
+      - dev
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+
+      - name: Set up DVC
+        uses: iterative/setup-dvc@v1
+
+      - name: Set up CML
+        uses: iterative/setup-cml@v2
+
+      - name: Install Dependencies
+        run: |
+          pip install -r requirements.txt
+      
+      # NEW STEP: Install the private SSH key from secrets
+      - name: Install SSH Key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.DVC_SSH_PRIVATE_KEY }}
+          known_hosts: 'github.com'
+
+      # DVC Pull will now use the installed SSH key for authentication
+      - name: Fetch DVC Data and Model
+        run: |
+          dvc pull --remote myremote
+          
+      - name: Run Tests with Pytest
+        run: |
+          pytest 2>&1 | tee test_report.txt
+
+      - name: Create CML Report
+        env:
+          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "## 🧪 CI Test Report" > report.md
+          echo "**Branch:** \`${{ github.ref_name }}\`" >> report.md
+          echo "" >> report.md
+          
+          echo "### 📊 Model Metrics (from training run)" >> report.md
+          echo '```' >> report.md
+          cat metrics.csv >> report.md
+          echo '```' >> report.md
+
+          echo "### ✅ Test Results" >> report.md
+          echo '```' >> report.md
+          cat test_report.txt >> report.md
+          echo '```' >> report.md
+          
+          cml comment create --publish report.md
