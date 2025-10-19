@@ -1,4 +1,4 @@
-name: CI Iris Pipeline Test
+name: CI Iris Pipeline Test (GCS)
 
 on:
   push:
@@ -11,6 +11,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  id-token: write
 
 jobs:
   run-tests:
@@ -33,19 +34,17 @@ jobs:
       - name: Install Dependencies
         run: |
           pip install -r requirements.txt
-      
-      # NEW STEP: Install the private SSH key from secrets
-      - name: Install SSH Key
-        uses: shimataro/ssh-key-action@v2
-        with:
-          key: ${{ secrets.DVC_SSH_PRIVATE_KEY }}
-          known_hosts: 'github.com'
 
-      # DVC Pull will now use the installed SSH key for authentication
+      - name: Authenticate to Google Cloud
+        id: 'auth'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
       - name: Fetch DVC Data and Model
         run: |
-          dvc pull --remote myremote
-          
+          dvc pull --remote gcsremote
+
       - name: Run Tests with Pytest
         run: |
           pytest 2>&1 | tee test_report.txt
@@ -54,11 +53,11 @@ jobs:
         env:
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "## 🧪 CI Test Report" > report.md
+          echo "## 🧪 CI Test Report (Storage: GCS)" > report.md
           echo "**Branch:** \`${{ github.ref_name }}\`" >> report.md
           echo "" >> report.md
           
-          echo "### 📊 Model Metrics (from training run)" >> report.md
+          echo "### 📊 Model Metrics" >> report.md
           echo '```' >> report.md
           cat metrics.csv >> report.md
           echo '```' >> report.md
