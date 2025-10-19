@@ -1,71 +1,89 @@
-train.py
+MLOps Pipeline for Iris Classification with DVC and GCP
 
-Purpose: This script is the heart of the machine learning pipeline. It handles the entire training process from start to finish.
+This repository contains a complete, automated MLOps pipeline for training, versioning, and testing an Iris flower classification model. It demonstrates best practices by integrating Git for code versioning, DVC for data and model versioning, Google Cloud Storage (GCS) for remote storage, and GitHub Actions for Continuous Integration (CI).
 
-Functionality:
+MLOps Pipeline Overview
 
-Loads the raw Iris dataset from samples/data.csv.
+This project follows a modern MLOps workflow. When a developer pushes code to the dev branch, a GitHub Actions workflow is automatically triggered. This workflow authenticates with Google Cloud, pulls the version-controlled data from GCS using DVC, runs a suite of automated tests, and posts a detailed report back to the commit.
 
-Splits the data into training and testing sets and saves them to the data/splits/ directory.
+Key Features
 
-Initializes and trains a DecisionTreeClassifier model using the training data.
+Reproducibility: DVC ensures that every version of the data and model is tracked, making experiments fully reproducible.
 
-Evaluates the trained model on the test data to calculate its accuracy.
+Automation: GitHub Actions automates the entire testing process, providing rapid feedback on code changes.
 
-Saves the final trained model object to model/iris_classifier_model.joblib.
+Scalable Storage: Google Cloud Storage provides a robust and scalable backend for storing large data and model files.
 
-Saves the accuracy score to metrics.csv.
+Continuous Integration: New code is automatically tested for data schema validity and model performance before it can be merged into the main branch.
 
-How to Run: python train.py
+Automated Reporting: CML (Continuous Machine Learning) is used to post clear, concise reports directly on commits and pull requests.
 
-test.py
+Detailed File Descriptions
 
-Purpose: This script contains automated tests to ensure the quality and reliability of the data and the trained model. It acts as a quality gate in our CI pipeline.
+Core Machine Learning Scripts
 
-Functionality:
+📄 train.py
 
-Data Validation Test: Checks if the test dataset (data/splits/test.csv) contains the correct columns. This prevents errors from changes in the data schema.
-
-Model Evaluation Test: Loads the trained model from model/iris_classifier_model.joblib and verifies that its accuracy on the test data is above a predefined threshold (e.g., 90%).
-
-How to Run: pytest or python -m unittest test.py
-
-CI/CD and Automation
-
-.github/workflows/runtest.yml
-
-Purpose: This is the configuration file for our Continuous Integration (CI) pipeline, powered by GitHub Actions. It defines the automated workflow that runs whenever code is pushed or a pull request is created.
+Purpose: This is the primary script that orchestrates the entire machine learning training process. It acts as the "engine" of the pipeline, taking raw data as input and producing a trained model and other artifacts as output.
 
 Functionality:
 
-Triggers: The workflow runs automatically on a push to the dev branch and on a pull_request to the main branch.
+Loads Data: Reads the raw Iris dataset from samples/data.csv.
 
-Environment Setup: Sets up a clean Ubuntu runner, installs Python, and all dependencies from requirements.txt.
+Splits Data: Divides the data into training and testing sets to ensure the model is evaluated on unseen data. These splits are saved to data/splits/.
 
-Authentication: Securely installs an SSH key (from repository secrets) that grants the runner access to the DVC remote storage.
+Trains Model: Uses a Decision Tree Classifier from scikit-learn to train a model on the training data.
 
-Data Fetching: Runs dvc pull to download the version-controlled data and model from the remote storage.
+Evaluates & Saves: Calculates the model's accuracy on the test set and saves three key artifacts:
 
-Testing: Executes the tests in test.py using pytest.
+The final trained model (model/iris_classifier_model.joblib).
 
-Reporting: Uses cml to generate a report containing test results and model metrics, and posts it as a comment on the relevant commit or pull request.
+The exact data splits used (data/splits/).
 
-Dependencies and Configuration
+The performance metrics (metrics.csv).
 
-requirements.txt
+📄 test.py
 
-Purpose: A standard Python file that lists all the external libraries required to run this project.
+Purpose: This script serves as the project's "quality assurance gate." It contains a suite of automated tests that validate the outputs of train.py. The CI pipeline runs these tests to prevent bugs and performance regressions.
 
-Utility: It allows anyone (or any machine, like the GitHub Actions runner) to create an identical environment by running a single command (pip install -r requirements.txt). This ensures reproducibility.
+Functionality (using unittest):
 
-Key Libraries:
+Data Schema Validation: A test that checks if the columns in the test data are exactly as expected. This crucial test catches any unexpected changes in the data format.
 
-pandas: For data manipulation.
+Model Performance Validation: A test that loads the trained model and asserts that its accuracy is above a predefined threshold (e.g., 90%). This ensures that new code changes do not accidentally degrade the model's performance.
 
-scikit-learn: For model training and evaluation.
+Automation and Configuration
 
-dvc[ssh]: For data version control, with SSH support for remote storage.
+📄 .github/workflows/runtest.yml
 
-pytest: For running the automated tests.
+Purpose: This is the brain of the entire automation process. It is a configuration file that tells GitHub Actions exactly what steps to execute when triggered.
 
-cml: For generating reports in the CI pipeline.
+Functionality:
+
+Triggers: The workflow is configured to run automatically on a push to the dev branch and on any pull_request targeting the main branch.
+
+Environment Setup: It prepares a clean virtual machine, installs Python, and all the project dependencies listed in requirements.txt.
+
+Secure Authentication: It securely authenticates with Google Cloud Platform using a Service Account key stored in GitHub's encrypted secrets.
+
+Data Synchronization: It runs dvc pull to download the specific versions of the model and data from the GCS bucket that correspond to the current code commit.
+
+Automated Testing: It executes the test suite using pytest.
+
+Report Generation: It uses CML to build a Markdown report that includes the model's metrics and the test results, then posts this report as a comment on the relevant commit or pull request.
+
+📄 requirements.txt
+
+Purpose: This file ensures a reproducible Python environment. It lists all the external libraries the project depends on.
+
+Key Dependencies:
+
+pandas & scikit-learn: For data handling and machine learning.
+
+dvc: The core library for data version control.
+
+dvc-gs: The specific plugin that enables DVC to communicate with Google Cloud Storage.
+
+pytest: The framework used for running the automated tests in test.py.
+
+cml: The tool used for generating reports in the CI workflow.
